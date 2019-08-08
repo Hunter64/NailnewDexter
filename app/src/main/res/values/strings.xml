@@ -8,5 +8,5 @@
 
     <string name="permission_status_granted">Granted!</string>
     <string name="permission_status_denied">Denied!</string>
-    <string name="permission_status_denied_permanently">Permanently Denied!?</string>
+    <string name="permission_status_denied_permanently">Permanently Denied!</string>
 </resources>
