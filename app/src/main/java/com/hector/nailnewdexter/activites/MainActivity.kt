@@ -5,6 +5,7 @@ import android.app.Activity
 import android.os.Bundle
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import com.google.android.material.snackbar.Snackbar
 import com.hector.nailnewdexter.R
 import com.hector.nailnewdexter.enums.PermissionStatusEnum
 import com.karumi.dexter.Dexter
@@ -13,8 +14,13 @@ import com.karumi.dexter.PermissionToken
 import com.karumi.dexter.listener.PermissionDeniedResponse
 import com.karumi.dexter.listener.PermissionGrantedResponse
 import com.karumi.dexter.listener.PermissionRequest
+import com.karumi.dexter.listener.multi.CompositeMultiplePermissionsListener
 import com.karumi.dexter.listener.multi.MultiplePermissionsListener
+import com.karumi.dexter.listener.multi.SnackbarOnAnyDeniedMultiplePermissionsListener
+import com.karumi.dexter.listener.single.CompositePermissionListener
+import com.karumi.dexter.listener.single.DialogOnDeniedPermissionListener
 import com.karumi.dexter.listener.single.PermissionListener
+import com.karumi.dexter.listener.single.SnackbarOnDeniedPermissionListener
 import kotlinx.android.synthetic.main.activity_main.*
 
 
@@ -36,7 +42,8 @@ class MainActivity : Activity() {
         buttonAll.setOnClickListener { checkAllPermissions() }
     }
 
-    private fun checkCameraPermissions() = setPermissionHandler(android.Manifest.permission.CAMERA, textViewCamera)
+    //Test camera permission's with Composite Dexter and using Dialog and Snack Bar to continue action for this (for Snack Bar is needed add id in container of layout)
+    private fun checkCameraPermissions() = setCameraPermissionHandlerWithSnackBar() //setCameraPermissionHandlerWithDialog() //setPermissionHandler(android.Manifest.permission.CAMERA, textViewCamera)
 
     private fun checkContactsPermissions() = setPermissionHandler(android.Manifest.permission.READ_CONTACTS, textViewContacts)
 
@@ -154,5 +161,90 @@ class MainActivity : Activity() {
                 textView.setTextColor(ContextCompat.getColor(this, R.color.colorPermissionStatusPermanentlyDenied))
             }
         }
+    }
+
+    //Composite Dexter -> Merge various "permission listener" in only one permission and use this
+    private fun setCameraPermissionHandlerWithDialog() {
+        //Show a dialog with text that want us, in base if permission is denied to show
+        val dialogPermissionsListener = DialogOnDeniedPermissionListener.Builder
+            .withContext(this)
+            .withTitle("Camera Permission")
+            .withMessage("Camera permission is needed to take pictures!")
+            .withButtonText(android.R.string.ok)
+            .withIcon(R.mipmap.ic_launcher)
+            .build()
+
+        //Permissions Manager's -> Permission Listener
+        val permission = object : PermissionListener {
+            override fun onPermissionGranted(response: PermissionGrantedResponse?) {
+                setPermissionStatus(textViewCamera, PermissionStatusEnum.GRANTED)
+            }
+
+            override fun onPermissionRationaleShouldBeShown(permission: PermissionRequest?, token: PermissionToken) {
+                token.continuePermissionRequest()
+            }
+
+            override fun onPermissionDenied(response: PermissionDeniedResponse) {
+                if (response.isPermanentlyDenied)
+                    setPermissionStatus(textViewCamera, PermissionStatusEnum.PERMANENTLY_DENIED)
+                else
+                    setPermissionStatus(textViewCamera, PermissionStatusEnum.DENIED)
+            }
+
+        }
+
+        //Use Composite
+        val composite = CompositePermissionListener(permission, dialogPermissionsListener)
+
+        Dexter.withActivity(this)
+            .withPermission(Manifest.permission.CAMERA)
+            .withListener(composite)
+            .check()
+    }
+
+    //Composite Dexter -> Same than previous function -> Merge various "permission listener" in only one permission and use this.. Now made with a SnackBar, remember that use SnackBar we need add id in layout container
+    private fun setCameraPermissionHandlerWithSnackBar() {
+
+        val snackbarPermissionListener =
+            SnackbarOnDeniedPermissionListener.Builder.with(root, "Camera is needed to take photos! Fuck!!")
+                .withOpenSettingsButton("Settings")
+                .withCallback(object : Snackbar.Callback() {
+                    override fun onShown(sb: Snackbar?) {
+                        //Event handler for when the given Snack Bar is visible
+
+                    }
+
+                    override fun onDismissed(transientBottomBar: Snackbar?, event: Int) {
+                        //Event handler for when the given Snack Bar been dismissed
+
+                    }
+                }).build()
+
+        //Permissions Manager's -> Permission Listener
+        val permission = object : PermissionListener {
+            override fun onPermissionGranted(response: PermissionGrantedResponse?) {
+                setPermissionStatus(textViewCamera, PermissionStatusEnum.GRANTED)
+            }
+
+            override fun onPermissionRationaleShouldBeShown(permission: PermissionRequest?, token: PermissionToken) {
+                token.continuePermissionRequest()
+            }
+
+            override fun onPermissionDenied(response: PermissionDeniedResponse) {
+                if (response.isPermanentlyDenied)
+                    setPermissionStatus(textViewCamera, PermissionStatusEnum.PERMANENTLY_DENIED)
+                else
+                    setPermissionStatus(textViewCamera, PermissionStatusEnum.DENIED)
+            }
+
+        }
+
+        //Use Composite
+        val composite = CompositePermissionListener(permission, snackbarPermissionListener)
+
+        Dexter.withActivity(this)
+            .withPermission(Manifest.permission.CAMERA)
+            .withListener(composite)
+            .check()
     }
 }
